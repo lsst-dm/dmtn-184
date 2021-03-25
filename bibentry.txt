@@ -1,0 +1,9 @@
+% bibentry template for lsst.bib in https://github.com/lsst/lsst-texmf/blob/master/texmf/bibtex/bib/lsst.bib
+
+@DocuShare{DMTN-184,
+   author = { Andy Salnikov },
+    title = {Testing Cassandra APDB implementation on GCP},
+     year = 2021,
+    month = Mar,
+   handle = {DMTN-184},
+      url = {https://dmtn-184.lsst.io } }
