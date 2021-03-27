@@ -15,13 +15,13 @@ Introduction
 
 This technical note describes series of tests performed with a Cassandra-based
 APDB implementation on Google Cloud Platform (GCP). Previous round of APDB
-tests with Apache Cassandra (`DMTN-156`_) performed with a three-node cluster
-at NCSA showed promising results but it was not possible to determine scaling
-behavior from those tests. Next series of tests was necessary at larger scale
-and a plan for that test was outlined in `DMTN-162`_. Actual testing was
+tests with Apache Cassandra performed with a three-node cluster at NCSA
+(`DMTN-156`_) showed promising results but it was not possible to evaluate
+scaling behavior from those tests. Next series of tests was necessary at larger
+scale and a plan for that test was outlined in `DMTN-162`_. Actual testing was
 performed using GCP resources which allowed us to chose optimal configuration
-for each test. Cluster setup and all tests are described in JIRA tickets under
-`DM-27785`_ epic.
+for each test. Cluster setup and all tests are described in more detail in JIRA
+tickets under `DM-27785`_ epic.
 
 
 Cluster Configuration
@@ -30,16 +30,16 @@ Cluster Configuration
 GCP was used to run both Cassandra server cluster and client software. On
 client side we are running 189 processes executing ``ap_proto`` application
 which does not require significant resources. To avoid over-subscribing CPU
-resources we were allocating one vCPU per process, for that the cluster that
-was used to run client software was comprised of 6 nodes, each has e2-custom
-type, with 32 vCPUs and 16GB RAM. The nodes were using ``lsst-w-2020-49`` image
-with LSST software pre-installed. Client process execution mas orchestrated
-using MPI mechanism, similarly to how it was done at NCSA.
+resources we were allocating one vCPU per process, the cluster that was used to
+run client software was comprised of 6 nodes, each has e2-custom type, with 32
+vCPUs and 16GB RAM. The nodes were using ``lsst-w-2020-49`` image with LSST
+software pre-installed. Client process execution mas orchestrated using MPI
+mechanism, similarly to how it was done at NCSA.
 
 Cassandra cluster is more resource-demanding, from our previous tests at NCSA
 it was clear that fast SSD storage is critical for performance and Cassandra in
 general needs abundant amount of RAM, though too much RAM can cause issues with
-garbage collection. For these reason the configuration for a single node in
+garbage collection. For these reasons the configuration for a single node in
 Cassandra cluster was selected as:
 
 - n2-custom VM type
@@ -49,7 +49,7 @@ Cassandra cluster was selected as:
 - Ubuntu-based image which is recommended for optimized nVME drivers
 
 GCP locally attached SSDs are non-persistent (scratch) type, they are
-re-created on each VM reboot, so special care is need in planning the tests.
+re-created on each VM reboot, so special care is needed in planning the tests.
 Cassandra cluster size varied between 3 and 12 nodes to evaluate scaling
 behavior.
 
@@ -64,7 +64,7 @@ Three-node Setup
 
 The very first test (`DM-28136`_) that was done with the new platform was a
 repeat of the setup used for APDB tests at PDAC. The goals of this test were to
-verify that things work as expected, that performance is not worse that what
+verify that things work as expected, that performance is not worse than what
 was observed in PDAC tests, and to set a baseline for scalability testing. For
 this and all following tests we used replication factor 3 and consistency level
 ``QUORUM`` for both reading and writing.
@@ -72,7 +72,7 @@ this and all following tests we used replication factor 3 and consistency level
 In total 50k visits were generated in this test. Performance looked similar to
 what was observed at PDAC with same `linear growth
 <_static/apdb-gcp1-nb-time-select-fit.png>`_ of reading time with the number of
-visits. Actual reading time improved slightly compared to `PDAC
+visits. Actual reading time has improved slightly compared to `PDAC
 <https://dmtn-156.lsst.io/#three-replica-cassandra-test>`_, at 50k visits total
 select time for all three tables is below 5 seconds, while PDAC performance
 was closer to 7 seconds for the same 50k visits.
@@ -81,21 +81,21 @@ was closer to 7 seconds for the same 50k visits.
 Six-node Setup
 ==============
 
-Next test (`DM-28154`_) was to check how performance improves with scaling
-cluster size by doubling the number of nodes. Ideally Cassandra performance
-should scale linearly with the number of nodes and reading time should reduce
-by 50%.
+Next test (`DM-28154`_) was to check how does performance improve with
+increased cluster size by doubling the number of nodes. Ideally Cassandra
+performance should scale linearly with the number of nodes and reading time
+should reduce by 50%.
 
 On the first iteration 75k visits were generated but `performance
 <_static/apdb-gcp2-nb-time-select-fit.png>`_ did not improve as expected, total
 read time at 50k visits was around 3.1 sec which is about 35% improvement
-compared to three-node case. Profiling shoed that significant fraction of time
-on client side was spent on converting the data into ``afw.Table`` which was
-used as a return data type for APDB API in these tests.
+compared to three-node case. Profiling showed that significant fraction of time
+on client side was spent on converting the data into ``afw.Table`` format which
+was used as a return data type for APDB API in these tests.
 
 As AP pipeline already decided to switch to ``pandas`` instead of ``afw.Table``
 for its internal presentation we decided to switch to ``pandas`` as well and
-repeated six-node test with that data format. There were 100k visits generated
+repeated six-node test using that data format. There were 100k visits generated
 in second iteration of this test, with ``pandas`` total read time reduced to
 1.67 seconds at 50k (and 3.26 sec at 100k visits) and CPU time on client side
 reduced dramatically. We did not repeat three-node test with ``pandas``,
@@ -116,7 +116,8 @@ Scaling Behavior
 ----------------
 
 Compared to previous six-node test performance improved significantly and total
-read time dropped to 1.65 sec at 100k visits, which is about 50% improvement.
+read time dropped to 1.65 sec at 100k visits, which is about 50% improvement
+compared to six-node setup.
 
 :numref:`apdb-gcp-scaling-plot.png` shows summary of scaling behavior for all
 above tests. After fixing excessive CPU usage by ``afw.Table`` conversion code
@@ -127,31 +128,31 @@ scaling behavior practically matches ideal `1/N` curve.
    :name: apdb-gcp-scaling-plot.png
    :target: _static/apdb-gcp-scaling-plot.png
 
-   Summary of the reading performance as a function of number of nodes.
-   Performance is given as a total read time at 100k visits, with three-node
-   and six-node ``afw.Table`` cases extrapolated to 100k. Curves represent
-   ideal ``1/N`` scaling behavior.
+   Summary of reading performance as a function of number of nodes. Performance
+   is given as a total read time at 100k visits, with three-node and six-node
+   ``afw.Table`` cases extrapolated to 100k. Curves represent ideal ``1/N``
+   scaling behavior.
 
 Twelve-month Plateau
 --------------------
 
 As seen on all previous plots select time is growing linearly with the number
-of DiaSources and DiaForcedSources. Those two numbers are determined by the
-size of the history read from database which is 12 months. We expect the
-numbers to plateau after 12 months and reading time to stabilize with it. To
-demonstrate that we generated 450k of visits which corresponds approximately to
+of DiaSources and DiaForcedSources. Those numbers are determined by the size of
+the history read from database which is set to 12 months. We expect the numbers
+to plateau after 12 months and reading time to stabilize with it. To
+demonstrate this we generated 450k of visits which corresponds approximately to
 18 month of date. ``ap_proto`` generates 800 visits per night which translates
-into 288k visits for twelve 30-night "months". 
+into 288k visits for twelve 30-night "months".
 
 :numref:`apdb-gcp4-nb-time-select-real.png` shows select time behavior for the
 whole range of generated visits. It is clear that after 300k visits select time
-stabilizes at the level of 4.5 seconds per visit. There are fluctuation related
-to the size of time partitioning which is 30 days in this case. This plots
-shows select time which is averaged over large number of visits, there are of
-course significant visit-to-visit fluctuation.
-:numref:`apdb-gcp4-nb-time-scatter.png` shows scatter plot for select and
-insert time for individual visits without averaging, visit-to-visit fluctuation
-is clearly visible but it stays in reasonable range.
+stabilizes at the level of 4.5 seconds per visit. The sawtooth-like
+fluctuations after 300k visits are related to the time partitioning scale which
+is 30 days in this case. This plot shows select time which is averaged over
+multiple of visits, there are of course significant visit-to-visit
+fluctuation. :numref:`apdb-gcp4-nb-time-scatter.png` shows scatter plot for
+select and insert times for individual visits without averaging, visit-to-visit
+fluctuations are clearly visible but they stay in reasonable range.
 
 .. figure:: /_static/apdb-gcp4-nb-time-select-real.png
    :name: apdb-gcp4-nb-time-select-real.png
@@ -176,17 +177,17 @@ For all of the above test we used identical partitioning options:
 
 - MQ3C(10) spatial partitioning
 - 30 day time partitioning for DiaSource and DiaForcedSource
-- time partition is not using Cassandra partitioning but separate tables
-  instead
+- time partition is not using Cassandra partitioning but separate
+  per-partition tables instead
 
-Partition sizes should provide a balance between number of partitions queried
-and the size of the data returned. Smaller partition size will reduce overhead
-in the size of the returned data but will increase the number of queries need
-to select needed data. Time partitioning is implemented using separate
-per-month tables, this is done to simplify management of the data beyond 12
-month. Older data that will not be queried after 12 months can be moved to
-slower storage or archived to save on SSD storage cost, that process would be
-easier to implement with the data in separate tables.
+Optimal partition sizes should provide a balance between number of partitions
+queried and the size of the data returned. Smaller partition size will reduce
+overhead in the size of the returned data but will increase the number of
+queries needed to select the data. Time partitioning is implemented using
+separate per-month tables, this is done to simplify management of the data
+beyond 12 month. Older data that will not be queried after 12 months can be
+moved to slower storage or archived to save on SSD storage cost, that process
+would be easier to implement with the data in separate tables.
 
 Part of epic was devoted to testing possible options for partitioning that
 could potentially improve performance which are described below.
@@ -210,17 +211,18 @@ Native Time Partitioning
 While using separate-table partitioning for time dimension has management
 benefits it could also have some performance impact. To quantify it we
 performed a test where separate-table partitioning mechanism was replaced with
-native Cassandra partitioning (`DM-28522`_).
+the native Cassandra partitioning (`DM-28522`_).
 
-As before no significant difference in select time was observed after this change.
+As before no significant difference in select time was observed after this
+change.
 
 Query Format
 ------------
 
-Cassandra query language is limited in what it can do but there is a freedom in
-how queries can be formulated to select data from multiple partitions:
+Cassandra query language is limited in what it can do but there is some freedom
+in how queries can be formulated to select data from multiple partitions:
 
-- execute single query specifying app partitions in ``IN()`` expression, e.g.
+- execute single query specifying all partitions in ``IN()`` expression, e.g.
   ``SELECT ... WHERE partition IN (...)``
 - execute multiple queries, one query per partition, e.g. ``SELECT ... WHERE
   partition = ...``
@@ -234,8 +236,9 @@ partitioned) and did not find significant difference in performance between
 them. Queries cover only 13 time partitions, for spatial index number of
 partitions per visit is higher. When we tried extreme case with individual
 queries for each temporal and spatial partition then total number of separate
-queries gre to more than 200. Client side performance in this case was
-significantly worse as client spend significant CPU time on processing results.
+queries grew to more than 200. Client side performance in this case was
+significantly worse with client spending significant CPU time on processing
+of the multiple results.
 
 
 Packed Data
@@ -246,29 +249,29 @@ and DiaSource tables are very wide and have large number of columns. Most of
 those columns are never used by Cassandra, there are no indices defined for
 them and queries do not use them. Management overhead for the schema could be
 reduced if bulk of that data is stored in some opaque form. Packing most
-columns in BLOB-like structure on client side could have some benefits but may
-also have some serious drawbacks:
+columns in a BLOB-like structure on client side could have some benefits but
+may also have some serious drawbacks:
 
 - server-side operations may become faster if server does not need to care
   about individual columns
-- potential schema change management my be simplified
+- potential schema change management may be simplified
 - if packing format is dynamic it needs extra space for column mapping
 - significantly more work needed on client side to pack/unpack the data
 
 A simple test was done to check how this might work (`DM-28820`_). For
-serialization of record we used `CBOR <https://cbor.io/>`_ which is a compact
+serialization of records we used `CBOR <https://cbor.io/>`_ which is a compact
 binary JSON-like format. CBOR structure is dynamic and needs to pack all column
 names with the data thus inflating the size of the BLOB. Cassandra uses
 compression for the data saved on disk which could offset some of that inflated
 size.
 
 The results from this test show that performance is slower in this case and it
-is caused byt significantly higher CPU time on client side spent on query
-result conversion. Attempts to optimize conversion ver only partially
+is caused by significantly higher CPU time on client side spent on query
+result conversion. Attempts to optimize conversion were only partially
 successful, improvements may be possible in general but would require doing
 much of the conversion in C++.
 
-Disk usage in Cassandra has also increased by factor of two even if compression
+Disk usage in Cassandra has increased by factor of two even if compression
 ratio for the data increased. Given all these observation our simple approach
 clearly does not result in improvement. It may still be possible to achieve
 some gains with packing but it would require significant effort to use fixed
@@ -281,27 +284,27 @@ The results of this test also show a potential for improvement. Converting
 query results to ``pandas`` format requires significant effort on client side.
 The main reason for this is a mismatch between data representation used by
 Cassandra client and ``pandas``. Cassandra client produces result data as a
-sequence of tuples which is close match to wire-level format. ``pandas`` on the
-other hand keeps the data in memory as a set of two-dimensional arrays.
+sequence of tuples which is a close match to wire-level protocol. ``pandas`` on
+the other hand keeps the data in memory as a set of two-dimensional arrays.
 Transformation of tuples to arrays involves a lot of iterations that all happen
 in Python level. If further improvements for conversion is necessary one could
-think of either replacing ``pandas`` with format that better matches Cassandra
-data or rewriting expensive part of conversion in C++.
+think of either replacing ``pandas`` with a format that better matches
+Cassandra representation or rewriting expensive parts of conversion in C++.
 
 
 High Availability
 =================
 
-One unplanned test happened by accident but allowed us to check how high
-availability feature of Cassandra performs (`DM-28522`_). One of the eight
+One unplanned test happened by accident but allowed us to check how does high
+availability feature of Cassandra perform (`DM-28522`_). One of the eight
 Cassandra nodes was misconfigured and its server became unavailable for several
 hours. Despite that cluster continued functioning normally without much of
-impact on performance. Both read and write times stayed at the same level,
+impact on performance. Both read and write latencies stayed at the same level,
 though obviously timeouts did happen when some clients that connected to that
 particular instance had to wait for response before cluster declared that node
 as dead.
 
-After the instance was reconfigured and re-joined the cluster operations
+After the instance was reconfigured and re-joined the cluster all operations
 continued and monitoring showed that data recovery on the temporary unavailable
 node worked as expected. This incident shows that Cassandra can function
 without service degradation when one replica becomes inaccessible. Cassandra
@@ -317,8 +320,8 @@ High CPU Usage
 
 Monitoring Cassandra cluster showed that occasionally one or two servers could
 start showing high CPU usage compared to all other servers. It does not seem to
-affect performance very much, a noticeable effect is seen on write time which
-still stays reasonably low. It seems that the issue can be mitigated by
+affect performance very much, a noticeable effect is seen only on write latency
+which still stays reasonably low. It seems that the issue can be mitigated by
 restarting that particular instance, after restart CPU usage returns to normal.
 It may be related to how cluster is initialized as it was only seen when
 cluster was re-initialized from scratch. We tried to get some advice from
@@ -332,7 +335,7 @@ The tests with AP prototype represent just a basic part of AP pipeline
 operation. Some more complicated options are not implemented in the prototype,
 in particular:
 
-- Day-time re-association of DiaSources to SSObjects ios not implemented and
+- Day-time re-association of DiaSources to SSObjects is not implemented and
   was not tested. Due to Cassandra architecture update operations are not
   trivial and may have some impact on later read requests. It may be possible
   to avoid it completely by splitting table schema, and it clearly deserves
@@ -343,14 +346,14 @@ in particular:
   distribution for DiaSources. It would be interesting to see the effect of
   non-uniformity on performance.
 - Data management aspect of the operations was not tested. Such operations
-  could include archiving or removing of older data and cleanup of the tables.
+  could include archiving or removal of older data and cleanup of the tables.
   This aspect will need to be understood and tested as well.
 
 
 Conclusion
 ==========
 
-We tested APDB prototype against Cassandra cluster running on GCP using
+We tested the APDB prototype against Cassandra cluster running on GCP using
 different options for cluster size and its operating parameters. Twelve-node
 Cassandra cluster seem to provide performance that can be adequate for AP
 pipeline operation for the scale of one year and beyond. The tests also provide
