@@ -3,13 +3,6 @@
 
 .. sectnum::
 
-.. TODO: Delete the note below before merging new content to the master branch.
-
-.. note::
-
-   **This technote is not yet published.**
-
-
 Introduction
 ============
 
@@ -161,14 +154,14 @@ fluctuations are clearly visible but they stay in reasonable range.
    Time to read as a function of visit for all three tables, ``select_real`` is
    a sum of three other values. Total time plateaus after approximately 300k
    visits, small fluctuations are due to granularity of time partitioning.
- 
+
 .. figure:: /_static/apdb-gcp4-nb-time-scatter.png
    :name: apdb-gcp4-nb-time-scatter.png
    :target: _static/apdb-gcp4-nb-time-scatter.png
 
    Scatter plot for select and insert time showing times for individual visits.
    Blue markers correspond to averaged green markers on the above plot.
- 
+
 
 Partitioning Options
 ====================
@@ -265,7 +258,7 @@ names with the data, thus inflating the size of the BLOB. Cassandra uses
 compression for the data saved on disk which could offset some of that inflated
 size.
 
-The results from this test showed that performance was slower in this case, 
+The results from this test showed that performance was slower in this case,
 caused by significantly higher client side CPU usage spent on query
 result conversion. Attempts to optimize the conversion were only partially
 successful; improvements may be possible in general but would require doing
